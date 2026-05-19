@@ -43,6 +43,7 @@ class Bird(pg.sprite.Sprite):
         self.on_ground = False
         self.jump_force = -18
         self.gravity = 1
+        self.invincible = 0  # 無敵時間さん
 
     def update(self, key_lst: list[bool]):
         # 重力処理
@@ -56,6 +57,9 @@ class Bird(pg.sprite.Sprite):
             self.on_ground = True
         else:
             self.on_ground = False
+
+        if self.invincible > 0:
+            self.invincible -= 1 # 無敵時間のカウントダウン
 
         # ジャンプ入力
         if key_lst[pg.K_SPACE] and self.on_ground:
@@ -114,6 +118,20 @@ class Score:
         screen.blit(score_img, (20, 20))
         screen.blit(coin_img, (20, 60))
 
+
+class Life:
+    """
+    ライフ数を表示するクラス
+    """
+    def __init__(self, num: int):
+        self.num = num
+
+    def update(self, screen: pg.Surface):
+        font = pg.font.SysFont(None, 40)
+        life_img = font.render(f"Life : {self.num}", True, BLACK)
+        screen.blit(life_img, (20, 100))
+
+
 def main():
     pg.display.set_caption("Temple Run Side Scroll (Sprite Ver.)")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -124,7 +142,7 @@ def main():
     obstacles = pg.sprite.Group()
     coins = pg.sprite.Group()
     score = Score()
-
+    life = Life(3)
     game_over = False
     tmr = 0
 
@@ -139,6 +157,9 @@ def main():
                     # ゲームのリセット（mainを再帰呼び出しせず変数を初期化）
                     main()
                     return
+                if event.key == pg.K_l and score.coin_value >= 50 and not game_over:
+                    score.coin_value -= 50
+                    life.num += 1 #Lキーでライフ回復
 
         if not game_over:
             # 難易度（速度）の設定
@@ -162,8 +183,13 @@ def main():
                 score.coin_value += 1
 
             # 衝突判定：障害物（当たったらゲームオーバー）
-            if pg.sprite.spritecollide(bird, obstacles, False):
-                game_over = True
+            for obstacle in pg.sprite.spritecollide(bird, obstacles, False):
+                if bird.invincible <= 0:      # 無敵時間外ならダメージ
+                    life.num -= 1             # ライフを1減らす
+                    bird.invincible = 60      # 60フレーム無敵
+                if life.num <= 0:         # ライフが0ならゲームオーバー
+                     game_over = True
+
             
             # 通過判定（画面外に消えた障害物をスコアに加算）
             for obstacle in obstacles:
@@ -185,6 +211,7 @@ def main():
         coins.draw(screen)
         screen.blit(bird.image, bird.rect)
         score.update(screen)
+        life.update(screen)
 
         if game_over:
             big_font = pg.font.SysFont(None, 80)
