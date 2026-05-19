@@ -19,6 +19,7 @@ BLUE = (50, 100, 255)
 YELLOW = (255, 220, 0)
 SKY = (120, 200, 255)
 BROWN = (120, 80, 40)
+GAUGE_COLOR = (255, 165, 0)
 
 def check_bound_horizontal(obj_rct: pg.Rect) -> bool:
     """
@@ -43,6 +44,8 @@ class Bird(pg.sprite.Sprite):
         self.on_ground = False
         self.jump_force = -18
         self.gravity = 1
+        self.double_jump_stock = 0
+        self.has_double_jumped = False # すでに空中で2段目を使ったか
 
     def update(self, key_lst: list[bool]):
         # 重力処理
@@ -54,13 +57,23 @@ class Bird(pg.sprite.Sprite):
             self.rect.bottom = GROUND_Y
             self.y_speed = 0
             self.on_ground = True
+            self.has_double_jumped = False
         else:
             self.on_ground = False
 
-        # ジャンプ入力
-        if key_lst[pg.K_SPACE] and self.on_ground:
+    def jump(self):
+        # 1段目ジャンプ
+        if self.on_ground:
             self.y_speed = self.jump_force
             self.on_ground = False
+            return False
+        # 2段目ジャンプ（条件：ゲージ満タンかつ、まだ空中ジャンプしていない）
+        elif self.double_jump_stock:
+            self.y_speed = self.jump_force
+            self.has_double_jumped = True
+            self.double_jump_stock -= 1
+            return True # 2段ジャンプ成功を通知
+        return False
 
 class Obstacle(pg.sprite.Sprite):
     """
@@ -127,22 +140,36 @@ def main():
 
     game_over = False
     tmr = 0
+    charge_start_tmr = 0 # 2段ジャンプ使用後のリセット用基準点
 
     while True:
-        key_lst = pg.key.get_pressed()
+        # 現在のチャージ量計算 (0〜600)
+        charge = tmr - charge_start_tmr
+        if charge >= 600:
+            bird.double_jump_stock += 1
+            charge_start_tmr += 600 # 溢れた分を次のチャージへ引き継ぐ
+            charge_current = tmr - charge_start_tmr # 更新
+        else:
+            bird.double_jump_ready = False
         
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
             if event.type == pg.KEYDOWN:
+                if event.key == pg.K_SPACE and not game_over:
+                    bird.jump()
+
                 if event.key == pg.K_r and game_over:
                     # ゲームのリセット（mainを再帰呼び出しせず変数を初期化）
                     main()
                     return
+        
+        
 
         if not game_over:
             # 難易度（速度）の設定
             current_speed = 8 + score.score_value // 10
+            tmr += 1
 
             # 障害物生成
             if tmr % 60 == 0:
@@ -153,7 +180,7 @@ def main():
                 coins.add(Coin(current_speed))
 
             # 更新
-            bird.update(key_lst)
+            bird.update(pg.key.get_pressed())
             obstacles.update()
             coins.update()
 
@@ -180,6 +207,16 @@ def main():
 
         # 【削除】ここに雲の描画処理がありましたが、削除しました
 
+        # --- 2段ジャンプゲージの描画 (6段階) ---
+        pg.draw.rect(screen, BLACK, (580, 25, 205, 35), 2) # 外枠
+        num_blocks = charge // 100 # 600 / 6 = 100 ごとに1ブロック
+        for i in range(num_blocks):
+            pg.draw.rect(screen, GAUGE_COLOR, (585 + i*32, 30, 28, 25))
+
+        stock_font = pg.font.SysFont(None, 36)
+        stock_txt = stock_font.render(f"DOUBLE JUMP: {bird.double_jump_stock}", True, RED if bird.double_jump_stock > 0 else BLACK)
+        screen.blit(stock_txt, (580, 65))
+
         # 各オブジェクト描画
         obstacles.draw(screen)
         coins.draw(screen)
@@ -194,7 +231,6 @@ def main():
             screen.blit(retry_img, (WIDTH//2 - 100, HEIGHT//2 + 40))
 
         pg.display.update()
-        tmr += 1
         clock.tick(60)
 
 if __name__ == "__main__":
