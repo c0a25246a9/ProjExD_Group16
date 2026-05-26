@@ -131,6 +131,23 @@ class Life:
         life_img = font.render(f"Life : {self.num}", True, BLACK)
         screen.blit(life_img, (20, 100))
 
+class Beam(pg.sprite.Sprite):
+    """
+    障害物を破壊する弾
+    """
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pg.Surface((20, 6))
+        self.image.fill((255, 255, 0))  # 黄色い弾
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.speed = 15
+
+    def update(self):
+        self.rect.x += self.speed
+        if self.rect.left > WIDTH:
+            self.kill()
+
 
 def main():
     pg.display.set_caption("Temple Run Side Scroll (Sprite Ver.)")
@@ -141,6 +158,7 @@ def main():
     bird = Bird((150, GROUND_Y - 40))
     obstacles = pg.sprite.Group()
     coins = pg.sprite.Group()
+    beams = pg.sprite.Group()
     score = Score()
     life = Life(3)
     game_over = False
@@ -154,6 +172,8 @@ def main():
                 return
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_r and game_over:
+                    score.coin_value -= 10
+                    beams.add(Beam(bird.rect.right, bird.rect.centery))
                     # ゲームのリセット（mainを再帰呼び出しせず変数を初期化）
                     main()
                     return
@@ -177,6 +197,7 @@ def main():
             bird.update(key_lst)
             obstacles.update()
             coins.update()
+            beams.update()
 
             # 衝突判定：コイン（当たったら消える）
             for coin in pg.sprite.spritecollide(bird, coins, True):
@@ -190,7 +211,12 @@ def main():
                 if life.num <= 0:         # ライフが0ならゲームオーバー
                      game_over = True
 
-            
+            # 弾と障害物の衝突
+            for beam in beams:
+                hit_list = pg.sprite.spritecollide(beam, obstacles, True)
+                if hit_list:
+                    beam.kill()
+
             # 通過判定（画面外に消えた障害物をスコアに加算）
             for obstacle in obstacles:
                 if obstacle.rect.x < -10 and not hasattr(obstacle, "scored"):
@@ -209,6 +235,7 @@ def main():
         # 各オブジェクト描画
         obstacles.draw(screen)
         coins.draw(screen)
+        beams.draw(screen)
         screen.blit(bird.image, bird.rect)
         score.update(screen)
         life.update(screen)
