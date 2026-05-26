@@ -172,14 +172,16 @@ def main():
                 return
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_r and game_over:
-                    score.coin_value -= 10
-                    beams.add(Beam(bird.rect.right, bird.rect.centery))
                     # ゲームのリセット（mainを再帰呼び出しせず変数を初期化）
                     main()
                     return
                 if event.key == pg.K_l and score.coin_value >= 50 and not game_over:
                     score.coin_value -= 50
                     life.num += 1 #Lキーでライフ回復
+                if event.key == pg.K_b and score.coin_value >= 10 and not game_over:
+                    score.coin_value -= 10
+                    beams.add(Beam(bird.rect.right, bird.rect.centery))#Bキーで弾発射
+
 
         if not game_over:
             # 難易度（速度）の設定
