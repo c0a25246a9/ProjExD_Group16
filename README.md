@@ -6,7 +6,7 @@
 
 ## ゲームの概要
 * 横スクロールでジャンプして障害物をさけるゲーム
-* 参考URL：[参考ゲーム](https://dinorunner.com/jp/)
+* 参考URL：[dyno](https://dinorunner.com/jp/)
 
 ## ゲームの遊び方
 * スペースでジャンプをして障害物を避けるゲーム
