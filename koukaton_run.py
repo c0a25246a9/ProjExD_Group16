@@ -367,8 +367,8 @@ def main():
                     # ゲームのリセット（mainを再帰呼び出しせず変数を初期化）
                     main()
                     return
-                if event.key == pg.K_l and score.coin_value >= 50 and not game_over:
-                    score.coin_value -= 50
+                if event.key == pg.K_l and score.coin_value >= 20 and not game_over:
+                    score.coin_value -= 20
                     life.num += 1 #Lキーでライフ回復
                 if event.key == pg.K_b and score.coin_value >= 10 and not game_over:
                     score.coin_value -= 10
