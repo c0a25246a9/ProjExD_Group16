@@ -258,7 +258,7 @@ class Life:
 
     def update(self, screen: pg.Surface):
         font = pg.font.SysFont(None, 40)
-        life_img = font.render(f"Life : {self.num}", True, BLACK)
+        life_img = font.render(f"Life : {self.num}", True, WHITE)
         screen.blit(life_img, (20, 100))
 
 class Beam(pg.sprite.Sprite):
@@ -333,7 +333,7 @@ def main():
     invincible_start = 0
 
     is_started = False
-    life = Life(200)
+    life = Life(3)
     game_over = False
     tmr = 0
     charge_start_tmr = 0 # 2段ジャンプ使用後のリセット用基準点
@@ -522,6 +522,7 @@ def main():
                 screen.blit(stock_txt, (580, 65))            
                 coins.draw(screen)
                 stars.draw(screen)
+                beams.draw(screen)
             # ゲーム中のオブジェクト描画
             obstacles.draw(screen)
             screen.blit(bird.image, bird.rect) 
