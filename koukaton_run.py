@@ -15,14 +15,13 @@ HEIGHT = 600
 GROUND_Y = 500
 
 # 色定義
-# 色定義
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 SKY = (120, 200, 255)
 YELLOW = (255, 220, 0)
 GREEN = (0, 200, 0)
-BLUE = (50, 100, 255)
 BROWN = (120, 80, 40)
 GAUGE_COLOR = (255, 165, 0)
 
@@ -44,6 +43,7 @@ class Bird(pg.sprite.Sprite):
         # キャラクター画像の読み込みとサイズ調整
         self.img_run = pg.transform.scale(pg.image.load("fig/2.png").convert_alpha(), (60, 80))   # 動いている時
         self.img_jump = pg.transform.scale(pg.image.load("fig/6.png").convert_alpha(), (60, 80))  # ジャンプ時
+        self.img_crouch = pg.transform.scale(pg.image.load("fig/4.png").convert_alpha(), (60, 30))  # しゃがんでいる時
          # 無敵画像
         self.img_invincible = pg.transform.scale(pg.image.load("fig/Gemini_Generated_Image_5cmamr5cmamr5cma.png").convert_alpha(),(80, 80))
         
@@ -70,6 +70,9 @@ class Bird(pg.sprite.Sprite):
         if key_lst is None:
             key_lst = pg.key.get_pressed()
 
+        # しゃがみ入力の判定
+        is_crouching = key_lst[pg.K_DOWN] and self.on_ground
+
         # 無敵時画像
         if invincible:
             center = self.rect.center
@@ -78,16 +81,21 @@ class Bird(pg.sprite.Sprite):
             self.rect.center = center
 
         else:
-            center = self.rect.center
-
-            if self.on_ground:
+            old_bottom = self.rect.bottom
+            old_centerx = self.rect.centerx
+            if is_crouching:
+                self.image = self.img_crouch
+            elif self.on_ground:
                 self.image = self.img_run
             else:
                 self.image = self.img_jump
-
             self.rect = self.image.get_rect()
-            self.rect.center = center
-
+            if is_crouching:
+                self.rect.bottom = old_bottom
+                self.rect.centerx = old_centerx
+            else:
+                # 通常時やジャンプ時は中心基準で座標を設定
+                self.rect.center = (old_centerx, old_bottom - self.rect.height // 2)
         # 重力
         self.y_speed += self.gravity
         self.rect.y += self.y_speed
@@ -101,25 +109,10 @@ class Bird(pg.sprite.Sprite):
         else:
             self.on_ground = False
 
-        if self.invincible > 0:
-            self.invincible -= 1 # 無敵時間のカウントダウン
-
         if self.hit_cooldown > 0:
             self.hit_cooldown -= 1
 
-
-        # ジャンプ入力
-        if key_lst[pg.K_SPACE] and self.on_ground:
-            self.y_speed = self.jump_force
-            self.on_ground = False
-            return False
-
     def jump(self):
-        # 状態に合わせて画像を切り替える
-        if self.on_ground:
-            self.image = self.img_run
-        else:
-            self.image = self.img_jump
 
         # 1段目ジャンプ
         if self.on_ground:
@@ -127,10 +120,11 @@ class Bird(pg.sprite.Sprite):
             self.se_jump.play()
             self.y_speed = self.jump_force
             self.on_ground = False
+        
             return False
         
         # 2段目ジャンプ（条件：ゲージ満タンかつ、まだ空中ジャンプしていない）
-        elif self.double_jump_stock:
+        elif self.double_jump_stock > 0 and not self.has_double_jumped:
             self.y_speed = self.jump_force
             self.has_double_jumped = True
             self.double_jump_stock -= 1
@@ -139,22 +133,34 @@ class Bird(pg.sprite.Sprite):
 
 class Obstacle(pg.sprite.Sprite):
     """
-    障害物（赤い矩形）に関するクラス
+    障害物（ジャンプで避けられる赤い矩形）に関するクラス
     """
     def __init__(self, speed):
         super().__init__()
+        self.fire = pg.image.load("fig/fire.png").convert_alpha()
+        height = random.randint(55, 80)
+        self.image = pg.transform.scale(self.fire, (60, height))
+        self.rect = self.image.get_rect()
+        self.rect.left = WIDTH
+        self.rect.bottom = GROUND_Y
+        self.speed = speed
+
+    def update(self):
+        self.rect.x -= self.speed
+        if check_bound_horizontal(self.rect):
+            self.kill()
+
+class Helfobstacle(pg.sprite.Sprite):
+    """
+    障害物（しゃがみで避けられる青い矩形）に関するクラス
+    """
+    def __init__(self, speed):
         super().__init__()
-        height = random.randint(40, 80)
-        self.image = pg.Surface((50, height))
-        self.image.fill(RED)
+        self.wall = pg.image.load("fig/wall.jpg").convert_alpha()
+        self.image = pg.transform.scale(self.wall, (50, HEIGHT))
         self.rect = self.image.get_rect()
         self.rect.left = WIDTH
-        self.rect.bottom = GROUND_Y
-        self.image = pg.Surface((50, height))
-        self.image.fill(RED)
-        self.rect = self.image.get_rect()
-        self.rect.left = WIDTH
-        self.rect.bottom = GROUND_Y
+        self.rect.bottom = GROUND_Y - 50
         self.speed = speed
 
     def update(self):
@@ -387,8 +393,12 @@ def main():
             current_speed = 8 + score.score_value // 10
 
             if tmr % 60 == 0:
-                obstacles.add(Obstacle(current_speed))
-            
+                ob_type = random.randint(0,100)
+                if 0 <= ob_type <= 50:
+                    obstacles.add(Obstacle(current_speed))
+                elif 51 <= ob_type <= 100:
+                    obstacles.add(Helfobstacle(current_speed))
+
             if tmr % 80 == 0:
                 coins.add(Coin(current_speed, coin_img))
 
